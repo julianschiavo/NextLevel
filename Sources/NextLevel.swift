@@ -387,11 +387,7 @@ public class NextLevel: NSObject, ObservableObject {
 
     /// The current recording session, a powerful means for modifying and editing previously recorded clips.
     /// The session provides features such as 'undo'.
-    public var session: NextLevelSession? {
-        get {
-            self._recordingSession
-        }
-    }
+    @Published public var session: NextLevelSession?
 
     /// Shared Core Image rendering context.
     public var sharedCIContext: CIContext? {
@@ -413,6 +409,7 @@ public class NextLevel: NSObject, ObservableObject {
 
     @available(*, unavailable, renamed: "isRecording")
     internal var _recording: Bool = false
+    @available(*, unavailable, renamed: "session")
     internal var _recordingSession: NextLevelSession?
     internal var _lastVideoFrameTimeInterval: TimeInterval = 0
 
@@ -514,7 +511,7 @@ public class NextLevel: NSObject, ObservableObject {
 
         self._currentDevice = nil
 
-        self._recordingSession = nil
+        self.session = nil
         self._captureSession = nil
 
         self.sharedCIContext = nil
@@ -624,7 +621,7 @@ extension NextLevel {
                 self.removeOutputs(session: session)
                 self.commitConfiguration()
 
-                self._recordingSession = nil
+                self.session = nil
                 self._captureSession = nil
                 self._currentDevice = nil
             }
@@ -649,7 +646,7 @@ extension NextLevel {
             self._sessionConfigurationCount = 0
 
             // setup NL recording session
-            self._recordingSession = NextLevelSession(queue: self._sessionQueue, queueKey: NextLevelCaptureSessionQueueSpecificKey)
+            self.session = NextLevelSession(queue: self._sessionQueue, queueKey: NextLevelCaptureSessionQueueSpecificKey)
 
             if let session = self._captureSession {
                 session.automaticallyConfiguresApplicationAudioSession = self.automaticallyConfiguresApplicationAudioSession
@@ -1338,7 +1335,7 @@ extension NextLevel {
     }
 
     internal func updateVideoOrientation() {
-        if let session = self._recordingSession {
+        if let session = self.session {
             if session.currentClipHasAudio == false && session.currentClipHasVideo == false {
                 session.reset()
             }
@@ -2317,7 +2314,7 @@ extension NextLevel {
     public func capturePhotoFromVideo() {
 
         self.executeClosureAsyncOnSessionQueueIfNecessary {
-            guard self._recordingSession != nil
+            guard self.session != nil
                 else {
                     return
             }
@@ -2446,7 +2443,7 @@ extension NextLevel {
     public func record() {
         self.executeClosureSyncOnSessionQueueIfNecessary {
             self.isRecording = true
-            if let _ = self._recordingSession {
+            if let _ = self.session {
                 self.beginRecordingNewClipIfNecessary()
             }
         }
@@ -2459,7 +2456,7 @@ extension NextLevel {
         self.isRecording = false
 
         self.executeClosureAsyncOnSessionQueueIfNecessary {
-            if let session = self._recordingSession {
+            if let session = self.session {
                 if session.currentClipHasStarted {
                     session.endClip(completionHandler: { (sessionClip: NextLevelClip?, error: Error?) in
                         if let sessionClip = sessionClip {
@@ -2486,7 +2483,7 @@ extension NextLevel {
     }
 
     internal func beginRecordingNewClipIfNecessary() {
-        if let session = self._recordingSession,
+        if let session = self.session,
             session.isReady == false {
             session.beginClip()
             DispatchQueue.main.async {
@@ -2732,7 +2729,7 @@ extension NextLevel {
     }
 
     private func checkSessionDuration() {
-        if let session = self._recordingSession,
+        if let session = self.session,
             let maximumCaptureDuration = self.videoConfiguration.maximumCaptureDuration {
             if maximumCaptureDuration.isValid && session.totalDuration >= maximumCaptureDuration {
                 self.isRecording = false
@@ -2766,7 +2763,7 @@ extension NextLevel: AVCaptureVideoDataOutputSampleBufferDelegate, AVCaptureAudi
             captureOutput == self._videoOutput {
             self.videoDelegate?.nextLevel(self, willProcessRawVideoSampleBuffer: sampleBuffer, onQueue: self._sessionQueue)
             self._lastVideoFrame = sampleBuffer
-            if let session = self._recordingSession {
+            if let session = self.session {
                 self.handleVideoOutput(sampleBuffer: sampleBuffer, session: session)
             }
         } else if let videoOutput = self._videoOutput,
@@ -2775,13 +2772,13 @@ extension NextLevel: AVCaptureVideoDataOutputSampleBufferDelegate, AVCaptureAudi
             case videoOutput:
                 self.videoDelegate?.nextLevel(self, willProcessRawVideoSampleBuffer: sampleBuffer, onQueue: self._sessionQueue)
                 self._lastVideoFrame = sampleBuffer
-                if let session = self._recordingSession {
+                if let session = self.session {
                     self.handleVideoOutput(sampleBuffer: sampleBuffer, session: session)
                 }
                 break
             case audioOutput:
                 self._lastAudioFrame = sampleBuffer
-                if let session = self._recordingSession {
+                if let session = self.session {
                     self.handleAudioOutput(sampleBuffer: sampleBuffer, session: session)
                 }
                 break
