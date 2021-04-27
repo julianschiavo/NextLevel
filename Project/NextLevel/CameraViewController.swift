@@ -441,13 +441,11 @@ extension CameraViewController: UIGestureRecognizerDelegate {
             self.startCapture()
             self._panStartPoint = gestureRecognizer.location(in: self.view)
             self._panStartZoom = CGFloat(NextLevel.shared.videoZoomFactor)
-            break
         case .changed:
             let newPoint = gestureRecognizer.location(in: self.view)
             let scale = (self._panStartPoint.y / newPoint.y)
             let newZoom = (scale * self._panStartZoom)
             NextLevel.shared.videoZoomFactor = Float(newZoom)
-            break
         case .ended:
             fallthrough
         case .cancelled:

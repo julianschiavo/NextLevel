@@ -23,6 +23,7 @@
 //  SOFTWARE.
 //
 
+import Combine
 import UIKit
 import Foundation
 import AVFoundation
@@ -239,7 +240,7 @@ private let NextLevelRequiredMinimumStorageSpaceInBytes: UInt64 = 49999872 // ~4
 // MARK: - NextLevel state
 
 /// ⬆️ NextLevel, Rad Media Capture in Swift (http://github.com/NextLevel)
-public class NextLevel: NSObject {
+public class NextLevel: NSObject, ObservableObject {
 
     // delegates
 
@@ -286,7 +287,7 @@ public class NextLevel: NSObject {
     // camera configuration
 
     /// The current capture mode of the device.
-    public var captureMode: NextLevelCaptureMode = .video {
+    @Published public var captureMode: NextLevelCaptureMode = .video {
         didSet {
             guard
                 self.captureMode != oldValue
@@ -307,7 +308,7 @@ public class NextLevel: NSObject {
     }
 
     /// The current device position.
-    public var devicePosition: NextLevelDevicePosition = .back {
+    @Published public var devicePosition: NextLevelDevicePosition = .back {
         didSet {
             self.executeClosureAsyncOnSessionQueueIfNecessary {
                 self.configureSessionDevices()
@@ -361,11 +362,7 @@ public class NextLevel: NSObject {
     // state
 
     /// Checks if the system is recording.
-    public var isRecording: Bool {
-        get {
-            self._recording
-        }
-    }
+    @Published private(set) public var isRecording: Bool = false
 
     /// Checks if the current capture session is running
     public var isRunning: Bool {
@@ -414,6 +411,7 @@ public class NextLevel: NSObject {
     internal var _sessionQueue: DispatchQueue
     internal var _sessionConfigurationCount: Int = 0
 
+    @available(*, unavailable, renamed: "isRecording")
     internal var _recording: Bool = false
     internal var _recordingSession: NextLevelSession?
     internal var _lastVideoFrameTimeInterval: TimeInterval = 0
@@ -2447,7 +2445,7 @@ extension NextLevel {
     /// Initiates video recording, managed as a clip within the 'NextLevelSession'
     public func record() {
         self.executeClosureSyncOnSessionQueueIfNecessary {
-            self._recording = true
+            self.isRecording = true
             if let _ = self._recordingSession {
                 self.beginRecordingNewClipIfNecessary()
             }
@@ -2458,7 +2456,7 @@ extension NextLevel {
     ///
     /// - Parameter completionHandler: Completion handler for when pause completes
     public func pause(withCompletionHandler completionHandler: (() -> Void)? = nil) {
-        self._recording = false
+        self.isRecording = false
 
         self.executeClosureAsyncOnSessionQueueIfNecessary {
             if let session = self._recordingSession {
@@ -2571,7 +2569,7 @@ extension NextLevel {
             }
         }
 
-        if self._recording && (session.isAudioSetup || self.captureMode == .videoWithoutAudio) && session.currentClipHasStarted {
+        if self.isRecording && (session.isAudioSetup || self.captureMode == .videoWithoutAudio) && session.currentClipHasStarted {
             self.beginRecordingNewClipIfNecessary()
 
             let minTimeBetweenFrames = 0.004
@@ -2645,7 +2643,7 @@ extension NextLevel {
             }
         }
 
-        if self._recording && (session.isAudioSetup || self.captureMode == .videoWithoutAudio) && session.currentClipHasStarted {
+        if self.isRecording && (session.isAudioSetup || self.captureMode == .videoWithoutAudio) && session.currentClipHasStarted {
             self.beginRecordingNewClipIfNecessary()
 
             let minTimeBetweenFrames = 0.004
@@ -2715,7 +2713,7 @@ extension NextLevel {
             }
         }
 
-        if self._recording && session.isVideoSetup && session.currentClipHasStarted && session.currentClipHasVideo {
+        if self.isRecording && session.isVideoSetup && session.currentClipHasStarted && session.currentClipHasVideo {
             self.beginRecordingNewClipIfNecessary()
 
             session.appendAudio(withSampleBuffer: sampleBuffer, completionHandler: { (success: Bool) -> Void in
@@ -2737,7 +2735,7 @@ extension NextLevel {
         if let session = self._recordingSession,
             let maximumCaptureDuration = self.videoConfiguration.maximumCaptureDuration {
             if maximumCaptureDuration.isValid && session.totalDuration >= maximumCaptureDuration {
-                self._recording = false
+                self.isRecording = false
 
                 // already on session queue, adding to next cycle
                 self.executeClosureAsyncOnSessionQueueIfNecessary {
@@ -3025,7 +3023,7 @@ extension NextLevel {
 
     @objc public func handleSessionWasInterrupted(_ notification: Notification) {
         DispatchQueue.main.async {
-            if self._recording {
+            if self.isRecording {
                 self.delegate?.nextLevelSessionDidStop(self)
             }
 
